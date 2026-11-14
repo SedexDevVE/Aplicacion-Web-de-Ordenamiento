@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catálogo de Productos - LPII</title>
+<style>
+  :root {
+    --bg: #0f172a; --panel: #1e293b; --panel2: #162033; --borde: #334155;
+    --texto: #f8fafc; --suave: #94a3b8; --azul: #3b82f6; --azul-h: #2563eb;
+    --verde: #22c55e; --rojo: #fca5a5; --amarillo: #f59e0b;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; background: var(--bg); color: var(--texto); line-height: 1.4; }
+  .contenedor { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
+  header h1 { font-size: clamp(1.5rem, 4vw, 2.1rem); margin: 0 0 4px; }
+  header p { margin: 0; color: var(--suave); }
+  h2 { font-size: 1.1rem; margin: 0 0 14px; }
+
+  .tarjeta { background: var(--panel); border: 1px solid var(--borde); border-radius: 12px; padding: 18px; margin-top: 20px; }
+
+  /* Resumen */
+  .resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 20px; }
+  .stat { background: var(--panel); border: 1px solid var(--borde); border-radius: 12px; padding: 14px 16px; }
+  .stat span { display: block; color: var(--suave); font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; }
+  .stat b { font-size: 1.3rem; }
+
+  /* Controles */
+  .barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .barra.sep { justify-content: space-between; }
+  button { background: var(--azul); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: .95rem; font-weight: 500; transition: background .15s, transform .05s; }
+  button:hover { background: var(--azul-h); }
+  button:active { transform: scale(.98); }
+  button.orden { background: #334155; }
+  button.orden:hover { background: #475569; }
+  button.orden.activo { background: var(--azul); }
+  input { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--borde); background: var(--bg); color: var(--texto); font-size: .95rem; }
+  input:focus { outline: 2px solid var(--azul); border-color: transparent; }
+  #filtro { flex: 1; min-width: 180px; }
+  #idBuscar { width: 140px; }
+
+  /* Tabla con scroll */
+  .info-tabla { color: var(--suave); font-size: .9rem; margin: 14px 0 8px; }
+  .tabla-wrap { max-height: 420px; overflow: auto; border: 1px solid var(--borde); border-radius: 10px; background: var(--panel2); scrollbar-color: #475569 transparent; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { position: sticky; top: 0; background: #0b1324; z-index: 1; text-align: left; padding: 12px 14px; font-size: .85rem; color: var(--suave); text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--borde); }
+  td { padding: 10px 14px; border-bottom: 1px solid #263349; }
+  tbody tr:hover td { background: #1b2a42; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.id { color: var(--suave); width: 80px; }
+  tr.resaltado td { background: #14532d !important; }
+  .vacio { text-align: center; color: var(--suave); padding: 28px; }
+
+  /* Resultados */
+  .caja { margin-top: 14px; padding: 14px; background: var(--panel2); border: 1px solid var(--borde); border-radius: 10px; min-height: 48px; }
+  .error { color: var(--rojo); }
+  .ok { color: var(--verde); }
+  .pasos { color: var(--suave); font-size: .9rem; }
+
+  /* Benchmark */
+  .fila-bench { margin: 10px 0; }
+  .fila-bench .etq { display: flex; justify-content: space-between; font-size: .9rem; margin-bottom: 4px; }
+  .pista { background: #0b1324; border-radius: 6px; height: 14px; overflow: hidden; }
+  .relleno { height: 100%; border-radius: 6px; transition: width .6s ease; width: 0; }
+  .relleno.q { background: var(--verde); }
+  .relleno.b { background: var(--amarillo); }
+
+  @media (max-width: 520px) {
+    button { padding: 10px 12px; font-size: .9rem; }
+    td, thead th { padding: 9px 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="contenedor">
+
+  <header>
+    <h1>Catálogo Dinámico de Productos</h1>
+    <p>Quicksort, búsqueda binaria y benchmark consumidos con <code>fetch()</code> desde Flask.</p>
+  </header>
+
+  <section class="resumen" aria-label="Resumen del catálogo">
+    <div class="stat"><span>Productos</span><b id="stTotal">—</b></div>
+    <div class="stat"><span>Precio mínimo</span><b id="stMin">—</b></div>
+    <div class="stat"><span>Precio máximo</span><b id="stMax">—</b></div>
+    <div class="stat"><span>Precio promedio</span><b id="stProm">—</b></div>
+  </section>
+
+  <section class="tarjeta">
+    <h2>Catálogo</h2>
+    <div class="barra" id="botones">
+      <button class="orden" id="o-precio-asc"  onclick="cargar('precio','asc')">Menor precio ↑</button>
+      <button class="orden" id="o-precio-desc" onclick="cargar('precio','desc')">Mayor precio ↓</button>
+      <button class="orden" id="o-nombre-asc"  onclick="cargar('nombre','asc')">Nombre A-Z</button>
+      <button class="orden" id="o-id-asc"      onclick="cargar('id','asc')">ID</button>
+    </div>
+    <div class="barra" style="margin-top:12px">
+      <input type="search" id="filtro" placeholder="Filtrar por nombre (ej. teclado)…" oninput="render()">
+    </div>
+    <div class="info-tabla" id="infoTabla">Cargando…</div>
+    <div class="tabla-wrap" id="scroll">
+      <table id="tabla">
+        <thead><tr><th>ID</th><th>Producto</th><th class="num">Precio</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="tarjeta">
+    <h2>Búsqueda binaria por ID</h2>
+    <div class="barra">
+      <input type="number" id="idBuscar" placeholder="Ej. 777" min="1" onkeydown="if(event.key==='Enter') buscar()">
+      <button onclick="buscar()">Buscar</button>
+    </div>
+    <div class="caja" id="resultadoBusqueda"><span class="pasos">Ingresa un ID y presiona Buscar.</span></div>
+  </section>
+
+  <section class="tarjeta">
+    <h2>Benchmark: Quicksort vs Burbuja (1.000 elementos)</h2>
+    <div class="barra"><button onclick="benchmark()">Ejecutar benchmark</button></div>
+    <div class="caja" id="resultadoBenchmark"><span class="pasos">Presiona el botón para medir los tiempos.</span></div>
+  </section>
+
+</div>
+
+<script>
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $ = id => document.getElementById(id);
+const dinero = n => '$' + Number(n).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+let datos = [];        // catálogo ya ordenado por el backend
+let resaltarId = null; // fila a resaltar tras una búsqueda
+
+function resumen() {
+  if (!datos.length) return;
+  const precios = datos.map(p => Number(p.precio));
+  $('stTotal').textContent = datos.length.toLocaleString('es-ES');
+  $('stMin').textContent = dinero(Math.min(...precios));
+  $('stMax').textContent = dinero(Math.max(...precios));
+  $('stProm').textContent = dinero(precios.reduce((a, b) => a + b, 0) / precios.length);
+}
+
+function render() {
+  const q = $('filtro').value.trim().toLowerCase();
+  const lista = q ? datos.filter(p => p.nombre.toLowerCase().includes(q)) : datos;
+  $('tabla').querySelector('tbody').innerHTML = lista.length
+    ? lista.map(p => `<tr id="fila-${p.id}" class="${p.id === resaltarId ? 'resaltado' : ''}">
+        <td class="id">${esc(p.id)}</td><td>${esc(p.nombre)}</td><td class="num">${dinero(p.precio)}</td></tr>`).join('')
+    : '<tr><td colspan="3" class="vacio">Sin resultados para ese filtro.</td></tr>';
+  $('infoTabla').textContent = `Mostrando ${lista.length.toLocaleString('es-ES')} de ${datos.length.toLocaleString('es-ES')} productos`;
+}
+
+async function cargar(campo, orden) {
+  try {
+    const res = await fetch(`/api/productos?sort_by=${campo}&order=${orden}`);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    datos = await res.json();
+  } catch (e) {
+    $('infoTabla').innerHTML = `<span class="error">No se pudo cargar el catálogo (${esc(e.message)}).</span>`;
+    return;
+  }
+  document.querySelectorAll('#botones .orden').forEach(b => b.classList.remove('activo'));
+  $(`o-${campo}-${orden}`).classList.add('activo');
+  resumen();
+  render();
+  if (resaltarId === null) $('scroll').scrollTop = 0;
+}
+
+async function buscar() {
+  const id = $('idBuscar').value;
+  const out = $('resultadoBusqueda');
+  if (id === '') { out.innerHTML = '<span class="error">Ingresa un ID.</span>'; return; }
+  try {
+    const res = await fetch(`/api/productos/buscar?id=${encodeURIComponent(id)}`);
+    const d = await res.json();
+    if (d.encontrado) {
+      out.innerHTML = `<span class="ok">✔ Encontrado:</span> <b>${esc(d.producto.nombre)}</b> — ${dinero(d.producto.precio)}
+        <div class="pasos">Posición ${d.indice} en la lista ordenada por ID · ${d.pasos} paso(s) de búsqueda binaria</div>`;
+      resaltarId = d.producto.id;
+      $('filtro').value = '';
+      await cargar('id', 'asc');
+      const fila = $(`fila-${resaltarId}`);
+      if (fila) fila.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      resaltarId = null;
+    } else {
+      out.innerHTML = `<span class="error">✘ ${esc(d.mensaje || d.error)}</span> <span class="pasos">(pasos: ${d.pasos ?? 0})</span>`;
+    }
+  } catch (e) {
+    out.innerHTML = `<span class="error">Error al consultar la API.</span>`;
+  }
+}
+
+async function benchmark() {
+  const out = $('resultadoBenchmark');
+  out.innerHTML = '<span class="pasos">Ejecutando… (Burbuja puede tardar un momento)</span>';
+  try {
+    const d = await (await fetch('/api/benchmark?n=1000')).json();
+    const max = Math.max(d.quicksort_ms, d.burbuja_ms);
+    out.innerHTML = `
+      <div class="pasos">Elementos ordenados: <b>${d.elementos.toLocaleString('es-ES')}</b></div>
+      <div class="fila-bench"><div class="etq"><span>Quicksort</span><b>${d.quicksort_ms} ms</b></div>
+        <div class="pista"><div class="relleno q" id="bq"></div></div></div>
+      <div class="fila-bench"><div class="etq"><span>Burbuja</span><b>${d.burbuja_ms} ms</b></div>
+        <div class="pista"><div class="relleno b" id="bb"></div></div></div>
+      <div>Quicksort fue <b>${d.veces_mas_rapido}x</b> más rápido. Resultados idénticos: ${d.resultados_iguales ? '<span class="ok">sí</span>' : '<span class="error">no</span>'}.</div>`;
+    requestAnimationFrame(() => {
+      $('bq').style.width = Math.max(d.quicksort_ms / max * 100, 2) + '%';
+      $('bb').style.width = (d.burbuja_ms / max * 100) + '%';
+    });
+  } catch (e) {
+    out.innerHTML = '<span class="error">Error al ejecutar el benchmark.</span>';
+  }
+}
+
+cargar('precio', 'asc');
+</script>
+</body>
+</html>
