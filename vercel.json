@@ -1,0 +1,11 @@
+json
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "https://indigo-casual-quokka-422.mypinata.cloud/ipfs/bafybeialoj4iem2juuz2tciypzaqk5mxybsxw2fyhljdzvkffyn7vnfeuq/index.html&quot;
+    },
+    {
+      "source": "/(.*)",
+      "destination": "https://indigo-casual-quokka-422.mypinata.cloud/ipfs/bafybeialoj4iem2juuz2tciypzaqk5mxybsxw2fyhljdzvkffyn7vnfeuq/$1&quot;
+    }
+  ]
